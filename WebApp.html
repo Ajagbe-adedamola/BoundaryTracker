@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<base target="_top">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sun King Territory Mapper</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{--sb:#EDB100;--sbi:#1E1B14;--bg:#E4E1D6;--panel:#F1EEE4;--card:#FAF8F1;--ink:#1F1D18;--mute:#6B6657;--line:#D4CFBF;--acc:#EDB100;--acci:#1E1B14;--bar:#26231C;--bari:#F3EEDD;--bad:#C0392B;--ok:#2E7D32}
+body.night{--sb:#C79500;--bg:#12110D;--panel:#1B1913;--card:#25221A;--ink:#EEE9DA;--mute:#A39D88;--line:#38342A;--bar:#0E0D0A;--bad:#E57368;--ok:#6BB27D}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:'Segoe UI',system-ui,Arial,sans-serif;font-size:14px;background:var(--bg);color:var(--ink)}
+#app{display:flex;height:100%;overflow:hidden}
+#nav{width:240px;background:var(--sb);color:var(--sbi);display:flex;flex-direction:column;padding:16px 12px;gap:6px;transition:width .2s;flex-shrink:0}
+.logo{display:flex;align-items:center;justify-content:space-between;font-weight:800;font-size:24px;line-height:1;letter-spacing:-.5px;padding:2px 6px 14px}
+.logo button{background:rgba(0,0,0,.12);border:0;border-radius:8px;width:30px;height:30px;cursor:pointer;color:var(--sbi);font-size:16px}
+.ni{display:flex;align-items:center;gap:12px;padding:11px 12px;border:0;border-radius:10px;background:transparent;color:var(--sbi);font-family:inherit;font-weight:600;font-size:15px;cursor:pointer;text-align:left;width:100%}
+.ni i{font-style:normal;width:20px;text-align:center;font-size:17px}
+.ni:hover{background:rgba(0,0,0,.08)}
+.ni.on{background:rgba(0,0,0,.16);box-shadow:inset 3px 0 0 var(--sbi)}
+.help{margin-top:auto;background:rgba(0,0,0,.1);border-radius:12px;padding:12px;font-size:12px;line-height:1.4}
+.help b{display:block;margin-bottom:2px;font-size:13px}
+#app.nc #nav{width:68px}#app.nc .ni span,#app.nc .help,#app.nc .logo span{display:none}#app.nc .logo{justify-content:center}
+#panel{width:330px;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;flex-shrink:0;transition:margin .2s}
+#panel.hide{margin-left:-330px}
+#panel h2{font-size:17px;padding:18px 18px 10px;font-weight:800}
+#pbody{overflow-y:auto;padding:0 14px 20px;flex:1}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px}
+.row{display:flex;gap:8px;align-items:center}
+.grow{flex:1;min-width:0}
+.k{font:700 11px/1 system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);margin:14px 0 8px}
+.big{font-size:28px;font-weight:800}
+.mute{color:var(--mute);font-size:12px}
+.tag{display:inline-block;font:700 10px/1 system-ui,sans-serif;letter-spacing:.04em;padding:4px 7px;border-radius:5px;background:rgba(192,57,43,.14);color:var(--bad);text-transform:uppercase}
+.dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+input,select{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font-family:inherit;font-size:13px}
+input:focus,select:focus{outline:2px solid var(--acc)}
+label{display:block;font:600 11px system-ui,sans-serif;color:var(--mute);margin:8px 0 4px;text-transform:uppercase;letter-spacing:.04em}
+button.b{border:0;border-radius:8px;padding:8px 12px;font:700 12px system-ui,sans-serif;cursor:pointer;background:var(--acc);color:var(--acci)}
+button.b.g{background:transparent;border:1px solid var(--line);color:var(--ink)}
+button.b.d{background:transparent;border:1px solid var(--bad);color:var(--bad)}
+button.b.w{width:100%;margin-top:10px;padding:11px}
+table{width:100%;border-collapse:collapse;font-size:12px}td,th{padding:6px 4px;border-bottom:1px solid var(--line);text-align:left}th{color:var(--mute);font-weight:700}
+#stage{flex:1;position:relative;display:flex;flex-direction:column;min-width:0}
+#top{height:56px;background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 18px;flex-shrink:0}
+#top h1{font-size:17px;font-weight:800}
+#top .r{display:flex;align-items:center;gap:12px}
+#st{font-size:12px;color:var(--mute)}
+#theme{background:transparent;border:1px solid var(--line);border-radius:8px;width:34px;height:34px;cursor:pointer;color:var(--ink);font-size:16px}
+#mapwrap{flex:1;position:relative}
+#map{position:absolute;inset:0;background:var(--bg)}
+.leaflet-tile-pane{filter:brightness(.93) saturate(.9)}
+body.night .leaflet-tile-pane{filter:brightness(.6) contrast(1.1) saturate(.7)}
+#tools{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:600;display:flex;gap:4px;flex-wrap:wrap;justify-content:center;max-width:calc(100% - 24px);background:var(--bar);padding:6px;border-radius:12px;box-shadow:0 6px 20px rgba(0,0,0,.35)}
+#tools button{background:transparent;border:0;color:var(--bari);padding:7px 10px;border-radius:8px;font:600 12px system-ui,sans-serif;cursor:pointer;white-space:nowrap}
+#tools button:hover{background:rgba(255,255,255,.1)}
+#tools button.on{background:var(--acc);color:var(--acci)}
+#tools select{width:auto;max-width:170px;background:rgba(255,255,255,.1);color:var(--bari);border:0;padding:7px 8px;font-weight:600}
+#tools select option{color:#000}
+#tools .sep{width:1px;background:rgba(255,255,255,.18);margin:4px 2px}
+#banner{position:absolute;top:64px;left:50%;transform:translateX(-50%);z-index:590;background:var(--acc);color:var(--acci);padding:7px 14px;border-radius:8px;font:700 12px system-ui,sans-serif;display:none;box-shadow:0 4px 12px rgba(0,0,0,.3)}
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--bar);color:var(--bari);padding:10px 16px;border-radius:10px;font:600 13px system-ui,sans-serif;z-index:2000;display:none;box-shadow:0 6px 20px rgba(0,0,0,.4)}
+#toast.bad{background:var(--bad);color:#fff}
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:1500}
+#modal .card{width:340px;margin:0;padding:18px}
+.pt{color:#fff;border:2px solid #fff;border-radius:50%;width:22px;height:22px;line-height:18px;text-align:center;font:700 11px system-ui;box-shadow:0 1px 5px rgba(0,0,0,.5)}
+@media(max-width:800px){#nav{width:68px}#nav .ni span,#nav .help,#nav .logo span{display:none}#panel{position:absolute;z-index:700;height:100%;width:290px}#panel.hide{margin-left:-290px}}
+</style>
+</head>
+<body>
+<div id="app">
+  <nav id="nav">
+    <div class="logo"><span>sun king</span><button onclick="document.getElementById('app').classList.toggle('nc')" title="Collapse menu">‹</button></div>
+    <button class="ni on" data-p="dashboard"><i>▦</i><span>Dashboard</span></button>
+    <button class="ni" data-p="hqs"><i>⌂</i><span>HQs</span></button>
+    <button class="ni" data-p="points"><i>◎</i><span>Points</span></button>
+    <button class="ni" data-p="distances"><i>↔</i><span>Distances</span></button>
+    <div class="help"><b>Need Help?</b>Contact IT support for process questions.</div>
+  </nav>
+
+  <aside id="panel"><h2 id="ptitle">Dashboard</h2><div id="pbody"></div></aside>
+
+  <main id="stage">
+    <div id="top">
+      <h1>Territory Mapper</h1>
+      <div class="r"><span id="st">Ready</span><button id="theme" title="Switch theme">☀</button></div>
+    </div>
+    <div id="mapwrap">
+      <div id="map"></div>
+      <div id="tools">
+        <select id="active" title="Active HQ"></select>
+        <span class="sep"></span>
+        <button onclick="openModal()">＋ Add HQ</button>
+        <button id="t-add" onclick="setMode('add')">📍 Add point</button>
+        <button id="t-edit" onclick="toggleEdit()">✋ Move points</button>
+        <button id="t-del" onclick="setMode('del')">🗑 Delete point</button>
+        <span class="sep"></span>
+        <button onclick="show('distances')">📏 Distances</button>
+        <button onclick="fitAll()">⤢ Fit all</button>
+        <button id="t-bnd" class="on" onclick="toggleLayer('bnd')">▱ Boundaries</button>
+        <button id="t-pts" class="on" onclick="toggleLayer('pts')">• Points</button>
+        <button onclick="load()">⟳ Refresh</button>
+      </div>
+      <div id="banner"></div>
+    </div>
+  </main>
+</div>
+
+<div id="toast"></div>
+<div id="modal">
+  <div class="card">
+    <h2 style="font-size:17px;margin-bottom:6px">Add HQ</h2>
+    <label for="m-name">HQ name</label><input id="m-name" placeholder="e.g. Shendam">
+    <label for="m-reg">Region</label><select id="m-reg"></select>
+    <p class="mute" style="margin-top:8px">After creating it, use “Add point” and click the map at least 3 times to draw its territory.</p>
+    <div class="row" style="margin-top:12px"><button class="b grow" onclick="createHQ()">Create HQ</button><button class="b g" onclick="closeModal()">Cancel</button></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const REGIONS=['South South','Lagos','South East','East Central','West East','Inverter Lagos&West','South West','Mid North','North Central','North East','North North','North West','Mid West','West Central'];
+const TITLES={dashboard:'Dashboard',hqs:'HQs',points:'Points',distances:'Distances'};
+let map,ALL=[],MD=[],ACTIVE='',PANEL='dashboard',MODE='',EDIT=false,EDHQ='',EDPT='',fitted=false;
+const polyG=L.layerGroup(),ptG=L.layerGroup(),hqG=L.layerGroup(),layers={bnd:true,pts:true};
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const run=(fn,...a)=>new Promise((ok,no)=>google.script.run.withSuccessHandler(ok).withFailureHandler(no)[fn](...a));
+let tt;
+function say(m,bad){const t=$('toast');t.textContent=m;t.className=bad?'bad':'';t.style.display='block';clearTimeout(tt);tt=setTimeout(()=>t.style.display='none',3500);$('st').textContent=bad?'Error':m}
+const fail=e=>{console.error(e);say('Error: '+(e&&e.message?e.message:e),true)};
+async function act(fn,msg){try{const r=await fn();if(r&&r.error){say(r.error,true);return null}say(msg);await load();return r||{}}catch(e){fail(e);return null}}
+const hqName=id=>{const h=ALL.find(x=>x.hqId===id);return h?h.hqName:''};
+const color=id=>{const m=MD.find(x=>x.hqId===id);return m?m.color:'#999'};
+
+// ---------- map ----------
+function initMap(){
+  map=L.map('map').setView([8.5,5],6);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; OpenStreetMap contributors',maxZoom:19}).addTo(map);
+  polyG.addTo(map);hqG.addTo(map);ptG.addTo(map);
+  map.on('click',e=>{
+    if(MODE!=='add')return;
+    if(!ACTIVE)return say('Choose an HQ first (top bar)',true);
+    act(()=>run('addAreaToHQ',ACTIVE,'','Point','',e.latlng.lat.toFixed(6),e.latlng.lng.toFixed(6)),'Point added to '+hqName(ACTIVE));
+  });
+}
+function draw(){
+  polyG.clearLayers();ptG.clearLayers();hqG.clearLayers();
+  const b=L.latLngBounds();
+  MD.forEach(h=>{
+    const isAct=h.hqId===ACTIVE;
+    const pg=L.polygon(h.boundaryPolygon.map(p=>[p.lat,p.lng]),{color:h.color,weight:isAct?4:2,opacity:isAct?1:.75,fillColor:h.color,fillOpacity:isAct?.3:.13}).addTo(polyG);
+    pg.bindTooltip(h.hqName,{sticky:true});
+    pg.on('click',()=>{if(!MODE)setActive(h.hqId)});
+    h.boundaryPolygon.forEach(p=>b.extend([p.lat,p.lng]));
+    L.circleMarker([h.hqLatLng.lat,h.hqLatLng.lng],{radius:7,fillColor:h.color,color:'#fff',weight:2,fillOpacity:1})
+      .bindPopup('<strong>'+esc(h.hqName)+'</strong><br>'+esc(h.hqAddress)).addTo(hqG);
+    h.areaCentroids.forEach(a=>{
+      const m=L.marker([a.lat,a.lng],{draggable:EDIT,icon:L.divIcon({className:'',iconSize:[22,22],html:'<div class="pt" style="background:'+h.color+'">'+a.index+'</div>'})})
+        .bindPopup('<strong>'+esc(h.hqName)+'</strong><br>Point '+a.index).addTo(ptG);
+      m.on('dragend',e=>{const ll=e.target.getLatLng();act(()=>run('editArea',h.hqId+'-P'+a.index,'','Point','',ll.lat.toFixed(6),ll.lng.toFixed(6)),'Point '+a.index+' moved')});
+      m.on('click',()=>{if(MODE==='del')delPoint(h.hqId+'-P'+a.index,h.areaCount)});
+    });
+  });
+  if(!fitted&&b.isValid()){map.fitBounds(b,{padding:[70,70]});fitted=true}
+}
+function setMode(m){
+  MODE=MODE===m?'':m;
+  $('t-add').classList.toggle('on',MODE==='add');$('t-del').classList.toggle('on',MODE==='del');
+  const bn=$('banner');
+  if(MODE==='add'){bn.textContent='Click the map to add a point to '+(hqName(ACTIVE)||'the active HQ');bn.style.display='block';map.getContainer().style.cursor='crosshair'}
+  else if(MODE==='del'){bn.textContent='Click a numbered point to delete it';bn.style.display='block';map.getContainer().style.cursor='pointer'}
+  else{bn.style.display='none';map.getContainer().style.cursor=''}
+}
+function toggleEdit(){EDIT=!EDIT;$('t-edit').classList.toggle('on',EDIT);say(EDIT?'Drag any numbered point to move it. Each move is saved.':'Move points is off');draw()}
+function toggleLayer(k){
+  layers[k]=!layers[k];$(k==='bnd'?'t-bnd':'t-pts').classList.toggle('on',layers[k]);
+  const g=k==='bnd'?polyG:ptG;layers[k]?map.addLayer(g):map.removeLayer(g);
+}
+function fitAll(){const b=L.latLngBounds();MD.forEach(h=>h.boundaryPolygon.forEach(p=>b.extend([p.lat,p.lng])));if(b.isValid())map.fitBounds(b,{padding:[70,70]})}
+function delPoint(id,count){
+  const msg=count<=3?'Deleting this point leaves fewer than 3, so this HQ will disappear from the map until you add another. Continue?':'Delete this point?';
+  if(confirm(msg))act(()=>run('removeArea',id),'Point deleted');
+}
+
+// ---------- data ----------
+async function load(){
+  try{
+    const [all,md]=await Promise.all([run('getAllHQs'),run('getMapData')]);
+    ALL=all;MD=md.error?[]:md.data;
+    if(!ALL.find(h=>h.hqId===ACTIVE))ACTIVE=ALL.length?ALL[0].hqId:'';
+    draw();renderSelect();render();
+    $('st').textContent=md.error?md.error:MD.length+' territories on the map';
+  }catch(e){fail(e)}
+}
+function renderSelect(){
+  const s=$('active');
+  s.innerHTML=ALL.length?ALL.map(h=>'<option value="'+esc(h.hqId)+'">'+esc(h.hqName)+'</option>').join(''):'<option value="">No HQs yet</option>';
+  s.value=ACTIVE;
+}
+$('active').addEventListener('change',e=>setActive(e.target.value));
+function setActive(id){
+  ACTIVE=id;$('active').value=id;draw();render();
+  if(MODE==='add')$('banner').textContent='Click the map to add a point to '+hqName(id);
+  const h=MD.find(x=>x.hqId===id);
+  if(h)map.fitBounds(L.latLngBounds(h.boundaryPolygon.map(p=>[p.lat,p.lng])),{padding:[90,90],maxZoom:13});
+}
+
+// ---------- panels ----------
+function show(p,fromNav){
+  if(fromNav&&PANEL===p&&!$('panel').classList.contains('hide')){$('panel').classList.add('hide');setTimeout(()=>map&&map.invalidateSize(),250);return}
+  PANEL=p;$('panel').classList.remove('hide');
+  document.querySelectorAll('.ni').forEach(b=>b.classList.toggle('on',b.dataset.p===p));
+  $('ptitle').textContent=TITLES[p];render();setTimeout(()=>map&&map.invalidateSize(),250);
+}
+document.querySelectorAll('.ni').forEach(b=>b.addEventListener('click',()=>show(b.dataset.p,true)));
+function render(){({dashboard:rDash,hqs:rHQs,points:rPoints,distances:rDist})[PANEL]()}
+
+function rDash(){
+  const onMap=new Set(MD.map(m=>m.hqId)),need=ALL.filter(h=>!onMap.has(h.hqId));
+  const pts=MD.reduce((s,m)=>s+m.areaCount,0);
+  $('pbody').innerHTML=
+   '<p class="mute" style="margin-bottom:12px">Here is what is on the map.</p>'+
+   '<div class="row"><div class="card grow"><div class="mute">HQs</div><div class="big">'+ALL.length+'</div></div><div class="card grow"><div class="mute">Points</div><div class="big">'+pts+'</div></div></div>'+
+   '<div class="k">What needs you <span class="tag" style="margin-left:6px">'+need.length+'</span></div>'+
+   (need.length?need.map(h=>'<div class="card row"><div class="grow"><b>'+esc(h.hqName)+'</b><div class="mute">Needs at least 3 points to show on the map</div></div><button class="b" data-a="fix" data-id="'+esc(h.hqId)+'">Add points</button></div>').join(''):'<div class="card mute">Every HQ has a territory on the map.</div>')+
+   '<div class="k">Map tools</div><div class="card mute" style="line-height:1.6">Use the dark toolbar on the map to add an HQ, add or delete points, move points by dragging, check distances, and show or hide boundaries.</div>';
+}
+function rHQs(){
+  $('pbody').innerHTML='<button class="b w" style="margin:0 0 12px" data-a="newhq">＋ Add HQ</button>'+(ALL.length?ALL.map(h=>{
+    const m=MD.find(x=>x.hqId===h.hqId),n=m?m.areaCount+' points':'needs points';
+    if(EDHQ===h.hqId)return '<div class="card"><label>HQ name</label><input id="e-name" value="'+esc(h.hqName)+'"><label>Region</label><select id="e-reg">'+REGIONS.map(r=>'<option'+(r===h.region?' selected':'')+'>'+esc(r)+'</option>').join('')+'</select><div class="row" style="margin-top:10px"><button class="b grow" data-a="savehq" data-id="'+esc(h.hqId)+'">Save</button><button class="b g" data-a="canhq">Cancel</button></div></div>';
+    return '<div class="card"'+(h.hqId===ACTIVE?' style="border-color:var(--acc)"':'')+'><div class="row"><span class="dot" style="background:'+color(h.hqId)+'"></span><div class="grow"><b>'+esc(h.hqName)+'</b><div class="mute">'+esc(h.region||'No region')+' · '+n+'</div></div></div><div class="row" style="margin-top:10px"><button class="b grow" data-a="sel" data-id="'+esc(h.hqId)+'">Select</button><button class="b g" data-a="edhq" data-id="'+esc(h.hqId)+'">Edit</button><button class="b d" data-a="delhq" data-id="'+esc(h.hqId)+'">Delete</button></div></div>';
+  }).join(''):'<div class="card mute">No HQs yet.</div>');
+}
+async function rPoints(){
+  if(!ACTIVE){$('pbody').innerHTML='<div class="card mute">Choose or add an HQ first.</div>';return}
+  let list=[];try{list=await run('getAreasForHQ',ACTIVE)}catch(e){return fail(e)}
+  if(PANEL!=='points')return;
+  $('pbody').innerHTML='<div class="row" style="margin-bottom:10px"><span class="dot" style="background:'+color(ACTIVE)+'"></span><b>'+esc(hqName(ACTIVE))+'</b></div>'+
+   '<div class="card"><label>Add a point by coordinates</label><div class="row"><input id="n-lat" placeholder="Latitude"><input id="n-lng" placeholder="Longitude"></div><button class="b w" data-a="addpt">Add point</button><div class="mute" style="margin-top:8px">Or press “Add point” on the map toolbar and click the map.</div></div>'+
+   (list.length?list.map(p=>{
+     if(EDPT===p.areaId)return '<div class="card"><b>'+esc(p.areaName)+'</b><div class="row" style="margin-top:6px"><input id="e-lat" value="'+p.lat.toFixed(6)+'"><input id="e-lng" value="'+p.lng.toFixed(6)+'"></div><div class="row" style="margin-top:10px"><button class="b grow" data-a="savept" data-id="'+esc(p.areaId)+'">Save</button><button class="b g" data-a="canpt">Cancel</button></div></div>';
+     return '<div class="card row"><div class="grow"><b>'+esc(p.areaName)+'</b><div class="mute">'+p.lat.toFixed(6)+', '+p.lng.toFixed(6)+'</div></div><button class="b g" data-a="edpt" data-id="'+esc(p.areaId)+'">Edit</button><button class="b d" data-a="delpt" data-id="'+esc(p.areaId)+'" data-n="'+list.length+'">Delete</button></div>';
+   }).join(''):'<div class="card mute">No points yet.</div>');
+}
+async function rDist(){
+  if(!ACTIVE){$('pbody').innerHTML='<div class="card mute">Choose or add an HQ first.</div>';return}
+  let r;try{r=await run('getDistancesForHQ',ACTIVE)}catch(e){return fail(e)}
+  if(PANEL!=='distances')return;
+  if(r.error){$('pbody').innerHTML='<div class="row" style="margin-bottom:10px"><b>'+esc(hqName(ACTIVE))+'</b></div><div class="card mute">'+esc(r.error)+'</div>';return}
+  const rows=a=>a.length?a.map(d=>'<tr><td>Point '+d.pointA+'</td><td>Point '+d.pointB+'</td><td><b>'+d.distance.toFixed(2)+'</b> km</td></tr>').join(''):'<tr><td colspan="3" class="mute">None</td></tr>';
+  $('pbody').innerHTML='<div class="row" style="margin-bottom:10px"><span class="dot" style="background:'+color(ACTIVE)+'"></span><b>'+esc(r.hqName)+'</b></div>'+
+   '<div class="row"><div class="card grow"><div class="mute">Points</div><div class="big">'+r.pointCount+'</div></div><div class="card grow"><div class="mute">Perimeter</div><div class="big">'+r.perimeter.toFixed(1)+'<span class="mute"> km</span></div></div></div>'+
+   '<div class="card"><div class="mute">Longest diagonal</div><div class="big">'+r.maxDiagonal.toFixed(1)+'<span class="mute"> km</span></div></div>'+
+   '<div class="k">Boundary edges</div><div class="card"><table><tr><th>From</th><th>To</th><th>Distance</th></tr>'+rows(r.edges)+'</table></div>'+
+   '<div class="k">Diagonals</div><div class="card"><table><tr><th>From</th><th>To</th><th>Distance</th></tr>'+rows(r.diagonals)+'</table></div>';
+}
+$('pbody').addEventListener('click',e=>{
+  const b=e.target.closest('[data-a]');if(!b)return;const a=b.dataset.a,id=b.dataset.id;
+  if(a==='sel')setActive(id);
+  else if(a==='fix'){setActive(id);show('points');setMode('add')}
+  else if(a==='newhq')openModal();
+  else if(a==='edhq'){EDHQ=id;render()}
+  else if(a==='canhq'){EDHQ='';render()}
+  else if(a==='savehq'){const n=$('e-name').value.trim();if(!n)return say('Enter a name',true);EDHQ='';act(()=>run('editHQ',id,n,$('e-reg').value),'HQ updated')}
+  else if(a==='delhq'){if(confirm('Delete "'+hqName(id)+'" and its points?'))act(()=>run('removeHQ',id),'HQ deleted')}
+  else if(a==='edpt'){EDPT=id;render()}
+  else if(a==='canpt'){EDPT='';render()}
+  else if(a==='savept'){const la=$('e-lat').value.trim(),lo=$('e-lng').value.trim();EDPT='';act(()=>run('editArea',id,'','Point','',la,lo),'Point updated')}
+  else if(a==='delpt')delPoint(id,+b.dataset.n);
+  else if(a==='addpt'){const la=$('n-lat').value.trim(),lo=$('n-lng').value.trim();if(!la||!lo)return say('Enter latitude and longitude',true);act(()=>run('addAreaToHQ',ACTIVE,'','Point','',la,lo),'Point added')}
+});
+
+// ---------- add HQ modal ----------
+function openModal(){$('m-reg').innerHTML=REGIONS.map(r=>'<option>'+esc(r)+'</option>').join('');$('m-name').value='';$('modal').style.display='flex';$('m-name').focus()}
+function closeModal(){$('modal').style.display='none'}
+async function createHQ(){
+  const n=$('m-name').value.trim();if(!n)return say('Enter an HQ name',true);
+  try{
+    const r=await run('addHQ',n,$('m-reg').value);
+    if(r.error)return say(r.error,true);
+    closeModal();ACTIVE=r.hqId;
+    await load();show('points');setMode('add');say('HQ added. Click the map at least 3 times to draw its territory.');
+  }catch(e){fail(e)}
+}
+
+// ---------- theme ----------
+$('theme').addEventListener('click',()=>{const n=document.body.classList.toggle('night');$('theme').textContent=n?'☾':'☀';try{localStorage.setItem('tm-theme',n?'night':'dim')}catch(e){}});
+try{if(localStorage.getItem('tm-theme')==='night'){document.body.classList.add('night');$('theme').textContent='☾'}}catch(e){}
+
+window.addEventListener('load',()=>{initMap();load()});
+</script>
+</body>
+</html>
